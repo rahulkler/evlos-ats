@@ -1,12 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import * as mammoth from "mammoth";
 import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 if (typeof window !== "undefined") {
   pdfjsLib.GlobalWorkerOptions.workerSrc = "/pdf.worker.mjs";
 }
+
+const STATIC_USERNAME = "evlos";
+const STATIC_PASSWORD = "evlos123";
+const SESSION_KEY = "evlos_ats_logged_in";
 
 function scoreColor(score) {
   if (score >= 80) return "#d6b36a";
@@ -23,8 +27,7 @@ async function extractTextFromPdf(file) {
     const page = await pdf.getPage(pageNum);
     const content = await page.getTextContent();
     const pageText = content.items.map((item) => item.str).join(" ");
-    text += `
-${pageText}`;
+    text += `\n${pageText}`;
   }
 
   return text.trim();
@@ -50,15 +53,6 @@ async function extractCvText(file) {
   throw new Error(`Unsupported file format for ${file.name}. Use PDF, DOCX, or TXT.`);
 }
 
-function StatCard({ value, label }) {
-  return (
-    <div style={statCardStyle}>
-      <div style={statValueStyle}>{value}</div>
-      <div style={statLabelStyle}>{label}</div>
-    </div>
-  );
-}
-
 function MetricCard({ label, value }) {
   return (
     <div style={metricCardStyle}>
@@ -68,7 +62,86 @@ function MetricCard({ label, value }) {
   );
 }
 
-export default function HomePage() {
+function LoginScreen({ onLogin }) {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+
+    if (username === STATIC_USERNAME && password === STATIC_PASSWORD) {
+      setError("");
+      onLogin();
+      return;
+    }
+
+    setError("Invalid username or password.");
+  };
+
+  return (
+    <main style={loginPageStyle}>
+      <div style={loginGlowOneStyle} />
+      <div style={loginGlowTwoStyle} />
+
+      <section style={loginShellStyle}>
+        <div style={loginBrandPanelStyle}>
+          <div style={loginBrandInnerStyle}>
+            <img
+              src="/evlos-logo.png"
+              alt="Evlos"
+              style={{ height: 52, width: "auto", objectFit: "contain" }}
+            />
+            <div style={eyebrowStyle}>EVLOS ATS</div>
+            <h1 style={loginTitleStyle}>Internal hiring workspace</h1>
+            <p style={loginTextStyle}>
+              Sign in to access candidate screening, role setup, and structured applicant review.
+            </p>
+          </div>
+        </div>
+
+        <div style={loginFormPanelStyle}>
+          <div style={panelEyebrowStyle}>Protected Access</div>
+          <h2 style={loginFormTitleStyle}>Sign in</h2>
+          <p style={loginFormTextStyle}>Use your internal access credentials.</p>
+
+          <form onSubmit={handleSubmit} style={{ marginTop: 24 }}>
+            <label style={fieldWrapStyle}>
+              <div style={fieldLabelStyle}>Username</div>
+              <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                style={inputStyle}
+                autoComplete="username"
+                placeholder="Enter username"
+              />
+            </label>
+
+            <label style={fieldWrapStyle}>
+              <div style={fieldLabelStyle}>Password</div>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                style={inputStyle}
+                autoComplete="current-password"
+                placeholder="Enter password"
+              />
+            </label>
+
+            {error ? <div style={errorBoxStyle}>{error}</div> : null}
+
+            <button type="submit" style={ctaButtonStyle}>
+              Enter Evlos ATS
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function AtsDashboard({ onLogout }) {
   const [jobTitle, setJobTitle] = useState("Senior Backend Engineer");
   const [jobDescription, setJobDescription] = useState(
     "We are hiring a senior backend engineer with strong experience in distributed systems, PostgreSQL, API design, security, and Python. Experience with audit logging, IAM, cloud deployment, and AI product integration is preferred."
@@ -170,43 +243,37 @@ export default function HomePage() {
 
   return (
     <main style={pageStyle}>
-      <section style={heroShellStyle}>
-        <div style={heroGlowStyle} />
-        <div style={heroGridStyle}>
-			<div style={brandRowStyle}>
-				<img
-					src="/evlos-logo.png"
-					alt="Evlos"
-					style={{ height: 46, width: "auto", objectFit: "contain" }}
-					/>
-				<div>
-					<div style={eyebrowStyle}>EVLOS ATS</div>
-					<div style={brandSubtextStyle}>Driven by Vision. Defined by Automation.</div>
-				</div>
-        	</div>
-
+      <div style={minimalHeaderStyle}>
+        <div style={headerLeftStyle}>
+          <img
+            src="/evlos-logo.png"
+            alt="Evlos"
+            style={{ height: 34, width: "auto", objectFit: "contain" }}
+          />
+          <div style={headerTitleStyle}>Evlos ATS</div>
         </div>
-      </section>
 
-      <section style={sectionHeaderStyle}>
-        <div>
-          <div style={sectionEyebrowStyle}>Assessment Setup</div>
-          <h2 style={sectionTitleStyle}>Define role requirements and upload candidate files</h2>
-        </div>
-      </section>
+        <button onClick={onLogout} style={secondaryButtonStyle}>
+          Log out
+        </button>
+      </div>
 
       <div style={mainGridStyle}>
         <section style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
-              <div style={panelEyebrowStyle}>Role Configuration</div>
+              <div style={panelEyebrowStyle}>Role</div>
               <h3 style={panelTitleStyle}>Job definition</h3>
             </div>
           </div>
 
           <label style={fieldWrapStyle}>
             <div style={fieldLabelStyle}>Job title</div>
-            <input value={jobTitle} onChange={(e) => setJobTitle(e.target.value)} style={inputStyle} />
+            <input
+              value={jobTitle}
+              onChange={(e) => setJobTitle(e.target.value)}
+              style={inputStyle}
+            />
           </label>
 
           <label style={fieldWrapStyle}>
@@ -237,8 +304,8 @@ export default function HomePage() {
             />
           </label>
 
-          <div style={{ marginTop: 28 }}>
-            <div style={subsectionTitleStyle}>Scoring weightings</div>
+          <div style={{ marginTop: 24 }}>
+            <div style={subsectionTitleStyle}>Weightings</div>
             <div style={weightsGridStyle}>
               {Object.entries(weightings).map(([key, value]) => (
                 <label key={key} style={weightInputWrapStyle}>
@@ -254,14 +321,15 @@ export default function HomePage() {
                 </label>
               ))}
             </div>
+
             <div
               style={{
-                marginTop: 14,
+                marginTop: 10,
                 color: totalWeight === 100 ? "#d6b36a" : "#fca5a5",
                 fontWeight: 600
               }}
             >
-              Total weighting: {totalWeight}
+              Total: {totalWeight}
             </div>
           </div>
         </section>
@@ -269,13 +337,13 @@ export default function HomePage() {
         <section style={panelStyle}>
           <div style={panelHeaderStyle}>
             <div>
-              <div style={panelEyebrowStyle}>Candidate Intake</div>
-              <h3 style={panelTitleStyle}>Batch CV upload</h3>
+              <div style={panelEyebrowStyle}>Candidates</div>
+              <h3 style={panelTitleStyle}>Upload CVs</h3>
             </div>
           </div>
 
           <div style={uploadCardStyle}>
-            <div style={uploadTitleStyle}>Upload CV files</div>
+            <div style={uploadTitleStyle}>Select candidate files</div>
             <div style={uploadSubtextStyle}>Accepted formats: PDF, DOCX, TXT</div>
             <input
               type="file"
@@ -286,7 +354,7 @@ export default function HomePage() {
             />
           </div>
 
-          <div style={{ marginTop: 22 }}>
+          <div style={{ marginTop: 18 }}>
             <div style={subsectionTitleStyle}>Selected files</div>
             <div style={fileListStyle}>
               {files.length ? (
@@ -302,7 +370,7 @@ export default function HomePage() {
           </div>
 
           <button onClick={onAnalyze} disabled={loading} style={ctaButtonStyle}>
-            {loading ? "Screening candidates..." : "Run ATS screening"}
+            {loading ? "Processing..." : "Run Screening"}
           </button>
 
           {error ? <div style={errorBoxStyle}>{error}</div> : null}
@@ -323,29 +391,33 @@ export default function HomePage() {
         </section>
       </div>
 
-      <section style={{ marginTop: 34 }}>
-        <div style={sectionHeaderStyle}>
-          <div>
-            <div style={sectionEyebrowStyle}>Candidate Ranking</div>
-            <h2 style={sectionTitleStyle}>Shortlisted results and comparative fit analysis</h2>
-          </div>
+      <section style={{ marginTop: 30 }}>
+        <div style={resultsHeaderStyle}>
+          <h2 style={{ margin: 0 }}>Results</h2>
+          <div style={{ color: "#94a3b8" }}>{results.length} candidate(s)</div>
         </div>
 
-        <div style={{ display: "grid", gap: 18 }}>
+        <div style={{ display: "grid", gap: 16, marginTop: 16 }}>
           {results.map((candidate, index) => (
             <article key={candidate.fileName} style={resultCardStyle}>
               <div style={resultHeaderStyle}>
                 <div>
                   <div style={rankTextStyle}>Rank #{index + 1}</div>
-                  <h3 style={{ margin: "4px 0 0 0", fontSize: 24 }}>{candidate.candidateName || candidate.fileName}</h3>
+                  <h3 style={{ margin: "4px 0 0 0", fontSize: 22 }}>
+                    {candidate.candidateName || candidate.fileName}
+                  </h3>
                   <div style={{ color: "#9ca3af", marginTop: 6 }}>{candidate.fileName}</div>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ color: "#9ca3af", fontSize: 12, letterSpacing: "0.12em", textTransform: "uppercase" }}>
-                    Overall score
-                  </div>
-                  <div style={{ fontSize: 42, fontWeight: 700, color: scoreColor(candidate.overallScore) }}>
+                  <div style={overallScoreLabelStyle}>Overall score</div>
+                  <div
+                    style={{
+                      fontSize: 38,
+                      fontWeight: 700,
+                      color: scoreColor(candidate.overallScore)
+                    }}
+                  >
                     {candidate.overallScore}
                   </div>
                 </div>
@@ -362,17 +434,24 @@ export default function HomePage() {
                   <div style={detailLabelStyle}>Recommendation</div>
                   <div style={detailValueStyle}>{candidate.recommendation}</div>
                 </div>
+
                 <div style={detailBlockStyle}>
                   <div style={detailLabelStyle}>Experience</div>
                   <div style={detailValueStyle}>{candidate.yearsExperience} years</div>
                 </div>
+
                 <div style={detailBlockStyle}>
                   <div style={detailLabelStyle}>Matched skills</div>
-                  <div style={detailTextStyle}>{candidate.matchedSkills.join(", ") || "None"}</div>
+                  <div style={detailTextStyle}>
+                    {candidate.matchedSkills.join(", ") || "None"}
+                  </div>
                 </div>
+
                 <div style={detailBlockStyle}>
                   <div style={detailLabelStyle}>Missing skills</div>
-                  <div style={detailTextStyle}>{candidate.missingSkills.join(", ") || "None"}</div>
+                  <div style={detailTextStyle}>
+                    {candidate.missingSkills.join(", ") || "None"}
+                  </div>
                 </div>
               </div>
 
@@ -398,59 +477,176 @@ export default function HomePage() {
 
               <div style={summaryCandidateStyle}>
                 <div style={insightTitleStyle}>Candidate summary</div>
-                <p style={{ margin: "10px 0 0 0", color: "#d1d5db", lineHeight: 1.7 }}>{candidate.summary}</p>
+                <p style={{ margin: "10px 0 0 0", color: "#d1d5db", lineHeight: 1.7 }}>
+                  {candidate.summary}
+                </p>
               </div>
             </article>
           ))}
 
-          {!results.length ? <div style={emptyStateStyle}>No rankings yet. Upload CVs and run the Evlos ATS screening.</div> : null}
+          {!results.length ? (
+            <div style={emptyStateStyle}>
+              No results yet. Upload CVs and run the screening.
+            </div>
+          ) : null}
         </div>
       </section>
     </main>
   );
 }
 
+export default function HomePage() {
+  const [hydrated, setHydrated] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const saved = window.localStorage.getItem(SESSION_KEY);
+    setIsLoggedIn(saved === "true");
+    setHydrated(true);
+  }, []);
+
+  const handleLogin = () => {
+    window.localStorage.setItem(SESSION_KEY, "true");
+    setIsLoggedIn(true);
+  };
+
+  const handleLogout = () => {
+    window.localStorage.removeItem(SESSION_KEY);
+    setIsLoggedIn(false);
+  };
+
+  if (!hydrated) {
+    return <main style={loginPageStyle} />;
+  }
+
+  if (!isLoggedIn) {
+    return <LoginScreen onLogin={handleLogin} />;
+  }
+
+  return <AtsDashboard onLogout={handleLogout} />;
+}
+
 const pageStyle = {
   minHeight: "100vh",
   background:
-    "radial-gradient(circle at top left, rgba(214,179,106,0.14), transparent 26%), linear-gradient(180deg, #05070b 0%, #0a0f16 42%, #05070b 100%)",
+    "radial-gradient(circle at top left, rgba(214,179,106,0.10), transparent 22%), linear-gradient(180deg, #05070b 0%, #0a0f16 42%, #05070b 100%)",
   color: "#f8fafc",
-  padding: "28px 24px 60px"
+  padding: "24px"
 };
 
-const heroShellStyle = {
+const loginPageStyle = {
+  minHeight: "100vh",
   position: "relative",
   overflow: "hidden",
-  background: "linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))",
-  border: "1px solid rgba(214,179,106,0.22)",
-  borderRadius: 28,
-  padding: "18px 32px",
-  boxShadow: "0 24px 80px rgba(0,0,0,0.32)"
-};
-
-const heroGlowStyle = {
-  position: "absolute",
-  inset: "auto -120px -140px auto",
-  width: 320,
-  height: 320,
-  borderRadius: "50%",
-  background: "radial-gradient(circle, rgba(214,179,106,0.18), transparent 70%)",
-  pointerEvents: "none"
-};
-
-const heroGridStyle = {
-  position: "relative",
-  display: "grid",
-  gridTemplateColumns: "minmax(0, 1.5fr) minmax(280px, 0.8fr)",
-  gap: 24,
-  alignItems: "stretch"
-};
-
-const brandRowStyle = {
+  background:
+    "radial-gradient(circle at top left, rgba(214,179,106,0.14), transparent 22%), radial-gradient(circle at bottom right, rgba(214,179,106,0.1), transparent 24%), linear-gradient(180deg, #040608 0%, #0a0f16 100%)",
+  color: "#f8fafc",
   display: "flex",
   alignItems: "center",
+  justifyContent: "center",
+  padding: 24
+};
+
+const loginGlowOneStyle = {
+  position: "absolute",
+  top: -120,
+  left: -80,
+  width: 360,
+  height: 360,
+  borderRadius: "50%",
+  background: "radial-gradient(circle, rgba(214,179,106,0.18), transparent 70%)"
+};
+
+const loginGlowTwoStyle = {
+  position: "absolute",
+  bottom: -140,
+  right: -80,
+  width: 380,
+  height: 380,
+  borderRadius: "50%",
+  background: "radial-gradient(circle, rgba(214,179,106,0.14), transparent 70%)"
+};
+
+const loginShellStyle = {
+  position: "relative",
+  zIndex: 1,
+  width: "100%",
+  maxWidth: 1100,
+  display: "grid",
+  gridTemplateColumns: "1fr 0.9fr",
+  background: "linear-gradient(180deg, rgba(10,15,22,0.96), rgba(6,9,14,0.98))",
+  border: "1px solid rgba(255,255,255,0.08)",
+  borderRadius: 28,
+  overflow: "hidden",
+  boxShadow: "0 30px 100px rgba(0,0,0,0.45)"
+};
+
+const loginBrandPanelStyle = {
+  padding: "40px 36px",
+  borderRight: "1px solid rgba(255,255,255,0.07)",
+  background:
+    "linear-gradient(135deg, rgba(214,179,106,0.08), rgba(255,255,255,0.02) 40%, rgba(255,255,255,0.01))"
+};
+
+const loginBrandInnerStyle = {
+  maxWidth: 520
+};
+
+const loginTitleStyle = {
+  margin: "16px 0 0 0",
+  fontSize: "clamp(2rem, 4vw, 3.4rem)",
+  lineHeight: 1.02,
+  letterSpacing: "-0.04em"
+};
+
+const loginTextStyle = {
+  marginTop: 18,
+  color: "#cbd5e1",
+  fontSize: 17,
+  lineHeight: 1.75,
+  maxWidth: 480
+};
+
+const loginFormPanelStyle = {
+  padding: "40px 36px",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "center"
+};
+
+const loginFormTitleStyle = {
+  margin: "6px 0 0 0",
+  fontSize: 32
+};
+
+const loginFormTextStyle = {
+  marginTop: 12,
+  color: "#cbd5e1",
+  lineHeight: 1.7
+};
+
+const minimalHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
   gap: 16,
-  marginBottom: 28
+  marginBottom: 20,
+  padding: "14px 18px",
+  borderRadius: 18,
+  background: "rgba(255,255,255,0.03)",
+  border: "1px solid rgba(255,255,255,0.08)"
+};
+
+const headerLeftStyle = {
+  display: "flex",
+  alignItems: "center",
+  gap: 14
+};
+
+const headerTitleStyle = {
+  fontSize: 18,
+  fontWeight: 700,
+  letterSpacing: "-0.02em"
 };
 
 const eyebrowStyle = {
@@ -459,92 +655,7 @@ const eyebrowStyle = {
   letterSpacing: "0.18em",
   textTransform: "uppercase",
   fontWeight: 700,
-  marginBottom: 6
-};
-
-const brandSubtextStyle = {
-  color: "#cbd5e1",
-  fontSize: 14
-};
-
-const heroTitleStyle = {
-  margin: 0,
-  maxWidth: 760,
-  fontSize: "clamp(2.2rem, 5vw, 4.4rem)",
-  lineHeight: 1.02,
-  letterSpacing: "-0.04em"
-};
-
-const heroTextStyle = {
-  marginTop: 18,
-  maxWidth: 760,
-  color: "#cbd5e1",
-  fontSize: 18,
-  lineHeight: 1.8
-};
-
-const heroBadgeRowStyle = {
-  display: "flex",
-  flexWrap: "wrap",
-  gap: 10,
-  marginTop: 24
-};
-
-const heroBadgeStyle = {
-  padding: "10px 14px",
-  borderRadius: 999,
-  border: "1px solid rgba(214,179,106,0.22)",
-  background: "rgba(255,255,255,0.03)",
-  color: "#e5e7eb",
-  fontSize: 13
-};
-
-const heroStatsWrapStyle = {
-  display: "grid",
-  gap: 14,
-  alignSelf: "end"
-};
-
-const statCardStyle = {
-  borderRadius: 22,
-  padding: "20px 22px",
-  background: "linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.025))",
-  border: "1px solid rgba(255,255,255,0.08)"
-};
-
-const statValueStyle = {
-  fontSize: 34,
-  fontWeight: 700,
-  color: "#d6b36a"
-};
-
-const statLabelStyle = {
-  marginTop: 6,
-  color: "#cbd5e1"
-};
-
-const sectionHeaderStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "end",
-  gap: 20,
-  marginTop: 34,
-  marginBottom: 18
-};
-
-const sectionEyebrowStyle = {
-  color: "#d6b36a",
-  fontSize: 12,
-  letterSpacing: "0.16em",
-  textTransform: "uppercase",
-  fontWeight: 700,
-  marginBottom: 8
-};
-
-const sectionTitleStyle = {
-  margin: 0,
-  fontSize: 30,
-  lineHeight: 1.15
+  marginTop: 14
 };
 
 const mainGridStyle = {
@@ -557,8 +668,8 @@ const mainGridStyle = {
 const panelStyle = {
   background: "linear-gradient(180deg, rgba(13,18,27,0.98), rgba(8,12,19,0.98))",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 26,
-  padding: 24,
+  borderRadius: 24,
+  padding: 22,
   boxShadow: "0 18px 50px rgba(0,0,0,0.22)"
 };
 
@@ -567,7 +678,7 @@ const panelHeaderStyle = {
   justifyContent: "space-between",
   alignItems: "center",
   gap: 14,
-  marginBottom: 22
+  marginBottom: 20
 };
 
 const panelEyebrowStyle = {
@@ -581,7 +692,7 @@ const panelEyebrowStyle = {
 
 const panelTitleStyle = {
   margin: 0,
-  fontSize: 26
+  fontSize: 24
 };
 
 const fieldWrapStyle = {
@@ -596,7 +707,7 @@ const fieldLabelStyle = {
 };
 
 const subsectionTitleStyle = {
-  fontSize: 18,
+  fontSize: 17,
   fontWeight: 700,
   marginBottom: 12
 };
@@ -618,14 +729,14 @@ const smallLabelStyle = {
 };
 
 const uploadCardStyle = {
-  borderRadius: 20,
+  borderRadius: 18,
   border: "1px dashed rgba(214,179,106,0.35)",
   background: "rgba(214,179,106,0.05)",
-  padding: 20
+  padding: 18
 };
 
 const uploadTitleStyle = {
-  fontSize: 20,
+  fontSize: 18,
   fontWeight: 700
 };
 
@@ -651,11 +762,11 @@ const filePillStyle = {
 };
 
 const ctaButtonStyle = {
-  marginTop: 24,
+  marginTop: 22,
   width: "100%",
   border: 0,
-  borderRadius: 16,
-  padding: "16px 18px",
+  borderRadius: 14,
+  padding: "15px 18px",
   fontWeight: 700,
   fontSize: 15,
   cursor: "pointer",
@@ -663,9 +774,20 @@ const ctaButtonStyle = {
   color: "#0b1020"
 };
 
+const secondaryButtonStyle = {
+  borderRadius: 14,
+  padding: "12px 14px",
+  fontWeight: 700,
+  fontSize: 14,
+  cursor: "pointer",
+  background: "rgba(255,255,255,0.04)",
+  color: "#f8fafc",
+  border: "1px solid rgba(255,255,255,0.08)"
+};
+
 const errorBoxStyle = {
   marginTop: 16,
-  borderRadius: 16,
+  borderRadius: 14,
   padding: 14,
   border: "1px solid rgba(248,113,113,0.35)",
   background: "rgba(127,29,29,0.22)",
@@ -674,7 +796,7 @@ const errorBoxStyle = {
 
 const summaryBoxStyle = {
   marginTop: 18,
-  borderRadius: 20,
+  borderRadius: 18,
   padding: 18,
   background: "rgba(255,255,255,0.035)",
   border: "1px solid rgba(255,255,255,0.08)"
@@ -701,11 +823,18 @@ const summaryTextStyle = {
   lineHeight: 1.7
 };
 
+const resultsHeaderStyle = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  gap: 12
+};
+
 const resultCardStyle = {
   background: "linear-gradient(180deg, rgba(11,16,25,0.98), rgba(7,11,18,0.98))",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 26,
-  padding: 24,
+  borderRadius: 24,
+  padding: 22,
   boxShadow: "0 18px 50px rgba(0,0,0,0.2)"
 };
 
@@ -725,6 +854,13 @@ const rankTextStyle = {
   fontWeight: 700
 };
 
+const overallScoreLabelStyle = {
+  color: "#9ca3af",
+  fontSize: 12,
+  letterSpacing: "0.12em",
+  textTransform: "uppercase"
+};
+
 const metricsGridStyle = {
   display: "grid",
   gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
@@ -735,7 +871,7 @@ const metricsGridStyle = {
 const metricCardStyle = {
   background: "rgba(255,255,255,0.035)",
   border: "1px solid rgba(255,255,255,0.08)",
-  borderRadius: 18,
+  borderRadius: 16,
   padding: 14
 };
 
@@ -747,7 +883,7 @@ const metricLabelStyle = {
 };
 
 const metricValueStyle = {
-  fontSize: 28,
+  fontSize: 26,
   fontWeight: 700,
   color: "#f8fafc"
 };
@@ -760,7 +896,7 @@ const detailsGridStyle = {
 };
 
 const detailBlockStyle = {
-  borderRadius: 18,
+  borderRadius: 16,
   padding: 16,
   background: "rgba(255,255,255,0.025)",
   border: "1px solid rgba(255,255,255,0.07)"
@@ -792,14 +928,14 @@ const insightGridStyle = {
 };
 
 const insightBoxStyle = {
-  borderRadius: 18,
+  borderRadius: 16,
   padding: 18,
   background: "rgba(255,255,255,0.025)",
   border: "1px solid rgba(255,255,255,0.07)"
 };
 
 const insightTitleStyle = {
-  fontSize: 18,
+  fontSize: 17,
   fontWeight: 700
 };
 
@@ -812,14 +948,14 @@ const listStyle = {
 
 const summaryCandidateStyle = {
   marginTop: 18,
-  borderRadius: 18,
+  borderRadius: 16,
   padding: 18,
   background: "rgba(214,179,106,0.05)",
   border: "1px solid rgba(214,179,106,0.18)"
 };
 
 const emptyStateStyle = {
-  borderRadius: 24,
+  borderRadius: 20,
   padding: 24,
   textAlign: "center",
   background: "rgba(255,255,255,0.025)",

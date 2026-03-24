@@ -1,6 +1,6 @@
 export const metadata = {
-  title: "ATS Screener",
-  description: "Batch CV screening with OpenAI"
+  title: "Evlos ATS",
+  description: "Evlos Applicant Tracking System"
 };
 
 export default function RootLayout({ children }) {
@@ -11,7 +11,7 @@ export default function RootLayout({ children }) {
           margin: 0,
           fontFamily:
             'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-          background: "#0b1020",
+          background: "#05070b",
           color: "#f8fafc"
         }}
       >
