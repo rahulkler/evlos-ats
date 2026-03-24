@@ -1,5 +1,6 @@
 import OpenAI from "openai";
 import { z } from "zod";
+import { uid } from "@/lib/utils";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY
@@ -28,34 +29,38 @@ const RequestSchema = z.object({
   )
 });
 
+const CandidateSchema = z.object({
+  id: z.string(),
+  fileName: z.string(),
+  candidateName: z.string(),
+  overallScore: z.number(),
+  yearsExperience: z.number(),
+  recommendation: z.enum(["Strong Hire", "Hire", "Borderline", "No Hire"]),
+  matchedSkills: z.array(z.string()),
+  missingSkills: z.array(z.string()),
+  strengths: z.array(z.string()),
+  risks: z.array(z.string()),
+  summary: z.string(),
+  technicalConcerns: z.array(z.string()),
+  clarificationsNeeded: z.array(z.string()),
+  interviewQuestions: z.array(z.string()),
+  metrics: z.object({
+    skills: z.number(),
+    experience: z.number(),
+    education: z.number(),
+    domain: z.number(),
+    communication: z.number(),
+    stability: z.number()
+  })
+});
+
 const OutputSchema = z.object({
   summary: z.object({
     recommendedCandidate: z.string(),
     overallObservation: z.string(),
     riskNote: z.string()
   }),
-  rankings: z.array(
-    z.object({
-      fileName: z.string(),
-      candidateName: z.string(),
-      overallScore: z.number(),
-      yearsExperience: z.number(),
-      recommendation: z.enum(["Strong Hire", "Hire", "Borderline", "No Hire"]),
-      matchedSkills: z.array(z.string()),
-      missingSkills: z.array(z.string()),
-      strengths: z.array(z.string()),
-      risks: z.array(z.string()),
-      summary: z.string(),
-      metrics: z.object({
-        skills: z.number(),
-        experience: z.number(),
-        education: z.number(),
-        domain: z.number(),
-        communication: z.number(),
-        stability: z.number()
-      })
-    })
-  )
+  rankings: z.array(CandidateSchema)
 });
 
 export async function POST(req) {
@@ -86,7 +91,7 @@ export async function POST(req) {
 You are an expert recruiting analyst and ATS scorer.
 
 Your task:
-1. Analyze all candidate CVs against the provided job description.
+1. Analyze all candidate CVs against the provided role definition.
 2. Score every candidate from 0 to 100 overall.
 3. Fill category metrics from 0 to 100 for:
    - skills
@@ -101,7 +106,12 @@ Your task:
 7. Penalize obvious missing must-have skills.
 8. Do not invent qualifications not present in the CV.
 9. If information is absent, treat it as unknown instead of assumed.
-10. Return valid JSON matching the required schema only.
+10. For each candidate, generate:
+   - technicalConcerns: concrete things to probe in technical review
+   - clarificationsNeeded: factual questions where the CV is incomplete or ambiguous
+   - interviewQuestions: 5 role-relevant interview questions tailored to the candidate's profile
+11. Keep summaries concise and high signal.
+12. Return valid JSON matching the required schema only.
 
 Recommendation rubric:
 - Strong Hire: exceptional fit
@@ -109,11 +119,6 @@ Recommendation rubric:
 - Borderline: mixed fit, interview only if pool is weak
 - No Hire: poor fit
     `.trim();
-
-    const input = {
-      job,
-      candidates
-    };
 
     const response = await openai.responses.create({
       model: "gpt-5",
@@ -124,18 +129,13 @@ Recommendation rubric:
         },
         {
           role: "user",
-          content: [
-            {
-              type: "input_text",
-              text: JSON.stringify(input)
-            }
-          ]
+          content: [{ type: "input_text", text: JSON.stringify({ job, candidates }) }]
         }
       ],
       text: {
         format: {
           type: "json_schema",
-          name: "ats_batch_screening",
+          name: "evlos_ats_batch_screening",
           strict: true,
           schema: {
             type: "object",
@@ -157,6 +157,7 @@ Recommendation rubric:
                   type: "object",
                   additionalProperties: false,
                   properties: {
+                    id: { type: "string" },
                     fileName: { type: "string" },
                     candidateName: { type: "string" },
                     overallScore: { type: "number" },
@@ -165,23 +166,14 @@ Recommendation rubric:
                       type: "string",
                       enum: ["Strong Hire", "Hire", "Borderline", "No Hire"]
                     },
-                    matchedSkills: {
-                      type: "array",
-                      items: { type: "string" }
-                    },
-                    missingSkills: {
-                      type: "array",
-                      items: { type: "string" }
-                    },
-                    strengths: {
-                      type: "array",
-                      items: { type: "string" }
-                    },
-                    risks: {
-                      type: "array",
-                      items: { type: "string" }
-                    },
+                    matchedSkills: { type: "array", items: { type: "string" } },
+                    missingSkills: { type: "array", items: { type: "string" } },
+                    strengths: { type: "array", items: { type: "string" } },
+                    risks: { type: "array", items: { type: "string" } },
                     summary: { type: "string" },
+                    technicalConcerns: { type: "array", items: { type: "string" } },
+                    clarificationsNeeded: { type: "array", items: { type: "string" } },
+                    interviewQuestions: { type: "array", items: { type: "string" } },
                     metrics: {
                       type: "object",
                       additionalProperties: false,
@@ -204,6 +196,7 @@ Recommendation rubric:
                     }
                   },
                   required: [
+                    "id",
                     "fileName",
                     "candidateName",
                     "overallScore",
@@ -214,6 +207,9 @@ Recommendation rubric:
                     "strengths",
                     "risks",
                     "summary",
+                    "technicalConcerns",
+                    "clarificationsNeeded",
+                    "interviewQuestions",
                     "metrics"
                   ]
                 }
@@ -229,9 +225,17 @@ Recommendation rubric:
     const json = JSON.parse(raw);
     const validated = OutputSchema.parse(json);
 
-    validated.rankings.sort((a, b) => b.overallScore - a.overallScore);
+    const rankings = validated.rankings
+      .map((candidate) => ({
+        ...candidate,
+        id: candidate.id || uid("candidate")
+      }))
+      .sort((a, b) => b.overallScore - a.overallScore);
 
-    return Response.json(validated);
+    return Response.json({
+      summary: validated.summary,
+      rankings
+    });
   } catch (error) {
     console.error(error);
 
